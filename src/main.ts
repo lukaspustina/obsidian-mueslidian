@@ -1,6 +1,13 @@
 import { Modal, Notice as ObsidianNotice, Plugin } from 'obsidian';
-import type { MuesliSettings, SyncReport } from './types.js';
+import type { App } from 'obsidian';
+import type { GranolaNoteId, MuesliSettings, SyncReport } from './types.js';
 import { DEFAULT_SETTINGS } from './settings.js';
+
+type MuesliPluginState = {
+  lastSyncAt: string | null;
+  filteredOut: Record<GranolaNoteId, string>;
+  lastSyncReport: SyncReport | null;
+};
 
 // ─── Notice shim (mirrors sync.ts) ───────────────────────────────────────────
 // vi.stubGlobal('Notice', ...) sets globalThis.Notice; the obsidian import
@@ -62,7 +69,7 @@ export function notifyOnReport(report: SyncReport, trigger: 'manual' | 'periodic
 // ─── showSyncReport ───────────────────────────────────────────────────────────
 
 class SyncReportModal extends Modal {
-  constructor(app: unknown, private report: SyncReport) {
+  constructor(app: App, _report: SyncReport) {
     super(app);
   }
   onOpen(): void {
@@ -72,7 +79,7 @@ class SyncReportModal extends Modal {
 }
 
 export function showSyncReport(app: unknown, report: SyncReport): Modal {
-  const modal = new SyncReportModal(app, report);
+  const modal = new SyncReportModal(app as App, report);
   modal.open();
   return modal;
 }
@@ -117,13 +124,13 @@ export async function handleUnmatchedAttendeeClick(
 
 export default class MueslidianPlugin extends Plugin {
   settings: MuesliSettings = { ...DEFAULT_SETTINGS };
-  state = { lastSyncAt: null as string | null, filteredOut: {} as Record<string, string>, lastSyncReport: null as SyncReport | null };
+  state: MuesliPluginState = { lastSyncAt: null, filteredOut: {}, lastSyncReport: null };
   private periodicHandle: { cancel(): void } | null = null;
 
   async onload(): Promise<void> {
     const data = (await this.loadData()) as {
       settings?: MuesliSettings;
-      state?: typeof this.state;
+      state?: MuesliPluginState;
     } | null;
     if (data?.settings) this.settings = { ...DEFAULT_SETTINGS, ...data.settings };
     if (data?.state) this.state = { ...this.state, ...data.state };
