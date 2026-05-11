@@ -11,7 +11,12 @@ import type {
 } from './types.js';
 import type { GranolaClient } from './granola.js';
 import { renderMeeting, stampAdditionalFrontmatter } from './markdown.js';
-import { attendeeTagPrefix, mergeMeetingFile, splitFrontmatter } from './merge.js';
+import {
+  attendeeTagPrefix,
+  hasMyNotesOutsideMarkers,
+  mergeMeetingFile,
+  splitFrontmatter,
+} from './merge.js';
 import { buildVaultIndex, filenameFor } from './vault.js';
 import { buildAttendeeIndex } from './attendees.js';
 import { load as yamlLoad } from 'js-yaml';
@@ -159,7 +164,13 @@ async function writeNote(
       !Array.isArray(fm['notes_on_speakers'])
         ? (fm['notes_on_speakers'] as Record<string, string>)
         : {};
-    const rendered = renderMeeting(note, nos, settings, attendeeIndex);
+    // R11: suppress the `## My Notes` placeholder when the existing body
+    // already has one outside marker blocks (per the SDD's literal reading).
+    const { body: existingBody } = splitFrontmatter(text);
+    const renderSettings = hasMyNotesOutsideMarkers(existingBody)
+      ? { ...settings, includeMyNotesPlaceholder: false }
+      : settings;
+    const rendered = renderMeeting(note, nos, renderSettings, attendeeIndex);
     const ns = attendeeTagPrefix(settings.attendeeTagTemplate) ?? undefined;
     const merged = mergeMeetingFile(text, rendered, ns);
     const final = stampAdditionalFrontmatter(merged, additional, false);
@@ -272,12 +283,19 @@ export async function syncAll(
 
   try {
     // Step 1: list all pages
+    // First-page failure → 'list_failed'. Mid-iteration failures (after
+    // page 1 was already returned) are treated as network errors so the
+    // partial list isn't lost ambiguously.
     const listed: Note[] = [];
     try {
       for await (const n of client.listAllNotes({})) listed.push(n);
     } catch (err) {
-      report.aborted = 'list_failed';
-      report.errors.push({ id: '' as GranolaNoteId, reason: String(err) });
+      const msg = (err as Error).message ?? String(err);
+      const isNetwork = /ENETUNREACH|ECONNREFUSED|ETIMEDOUT|fetch failed|network/i.test(msg);
+      report.aborted = listed.length === 0
+        ? (isNetwork ? 'network' : 'list_failed')
+        : 'network';
+      report.errors.push({ id: '' as GranolaNoteId, reason: msg });
       return finalize(report);
     }
     report.listed = listed.length;
@@ -337,8 +355,14 @@ export async function syncAll(
         continue;
       }
 
-      await writeNote(app, settings, vaultIndex, attendeeIndex, note, report);
-      collectUnmatchedAttendees(note, attendeeIndex, settings, report);
+      // Per-note write error: record + continue rather than aborting the
+      // whole sync. Mirrors the per-note getNote 5xx behavior.
+      try {
+        await writeNote(app, settings, vaultIndex, attendeeIndex, note, report);
+        collectUnmatchedAttendees(note, attendeeIndex, settings, report);
+      } catch (err) {
+        report.errors.push({ id, reason: `write failed: ${(err as Error).message ?? String(err)}` });
+      }
     }
 
     // Step 7: roll up diff counts

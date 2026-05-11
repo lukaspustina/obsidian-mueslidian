@@ -61,6 +61,33 @@ export function startPeriodicSync(opts: PeriodicSyncOptions): { cancel(): void }
   };
 }
 
+/**
+ * Catch-up wiring per FR44. `delayFn` is injectable so tests can resolve it
+ * immediately. Default: 60 s setTimeout.
+ *
+ * - If `shouldCatchUp` is false, this is a no-op (returns immediately).
+ * - Otherwise awaits `delayFn(60_000)` then calls `runSync`.
+ */
+export interface CatchUpOptions {
+  lastSyncAt: string | null;
+  periodicIntervalMinutes: number;
+  runSync: () => void | Promise<void>;
+  delayFn?: (ms: number) => Promise<void>;
+  nowMs?: number;
+}
+
+const defaultDelayFn = (ms: number): Promise<void> =>
+  new Promise(resolve => setTimeout(resolve, ms));
+
+export async function scheduleCatchUp(opts: CatchUpOptions): Promise<boolean> {
+  const now = opts.nowMs ?? Date.now();
+  if (!shouldCatchUp(opts.lastSyncAt, opts.periodicIntervalMinutes, now)) return false;
+  const delay = opts.delayFn ?? defaultDelayFn;
+  await delay(60_000);
+  await opts.runSync();
+  return true;
+}
+
 // ─── notifyOnReport ───────────────────────────────────────────────────────────
 
 export function notifyOnReport(report: SyncReport, trigger: 'manual' | 'periodic'): void {
@@ -270,16 +297,13 @@ export default class MueslidianPlugin extends Plugin {
     // ── Periodic timer ─────────────────────────────────────────────────────
     this.applyPeriodicSchedule();
 
-    // ── Catch-up on load ────────────────────────────────────────────────────
-    if (
-      shouldCatchUp(this.state.lastSyncAt, this.settings.periodicIntervalMinutes, Date.now())
-    ) {
-      // Fire one catch-up sync ~60 s after load. Don't block onload.
-      void (async () => {
-        await new Promise<void>(r => setTimeout(r, 60_000));
-        await this.triggerSyncNow('periodic');
-      })();
-    }
+    // ── Catch-up on load (FR44, injectable delayFn) ─────────────────────────
+    // Fire-and-forget; the 60s delay is non-blocking.
+    void scheduleCatchUp({
+      lastSyncAt: this.state.lastSyncAt,
+      periodicIntervalMinutes: this.settings.periodicIntervalMinutes,
+      runSync: () => this.triggerSyncNow('periodic'),
+    });
   }
 
   onunload(): void {
@@ -351,6 +375,14 @@ export default class MueslidianPlugin extends Plugin {
     this.state.filteredOut = {};
     await this.persistState();
     emitNotice('Müslidian: filtered-out cache cleared');
+  }
+
+  viewLastSyncReport(): void {
+    if (this.state.lastSyncReport) {
+      showSyncReport(this.app, this.state.lastSyncReport, this.settings);
+    } else {
+      emitNotice('Müslidian: no sync run yet');
+    }
   }
 
   private applyPeriodicSchedule(): void {

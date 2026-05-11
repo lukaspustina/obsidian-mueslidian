@@ -70,6 +70,7 @@ interface MueslidianHost extends Plugin {
   saveSettings(): Promise<void>;
   triggerSyncNow?(): Promise<void>;
   clearFilteredOutCache?(): Promise<void>;
+  viewLastSyncReport?(): void;
 }
 
 export class MueslidianSettingTab extends PluginSettingTab {
@@ -291,6 +292,15 @@ export class MueslidianSettingTab extends PluginSettingTab {
         await this.plugin.triggerSyncNow?.();
       }),
     );
+
+    new Setting(containerEl)
+      .setName('View last sync report')
+      .setDesc('Open the report from the most recent sync.')
+      .addButton(b =>
+        b.setButtonText('View').onClick(() => {
+          this.plugin.viewLastSyncReport?.();
+        }),
+      );
 
     new Setting(containerEl)
       .setName('Clear filtered-out cache')

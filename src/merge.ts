@@ -105,6 +105,24 @@ export function attendeeTagPrefix(template: string): string | null {
   return template.slice(0, slash);
 }
 
+/**
+ * R11: return true when an existing file body contains the literal string
+ * `## My Notes` outside every `<!-- granola:*:* -->` marker block. Used by
+ * the caller to suppress placeholder re-emission on re-sync.
+ */
+export function hasMyNotesOutsideMarkers(body: string): boolean {
+  // Strip every marker block (start...end) from the body, then check.
+  let cleaned = body;
+  for (const name of BLOCK_NAMES) {
+    const re = new RegExp(
+      `<!-- granola:${name}:start -->[\\s\\S]*?<!-- granola:${name}:end -->`,
+      'g',
+    );
+    cleaned = cleaned.replace(re, '');
+  }
+  return cleaned.includes('## My Notes');
+}
+
 export function mergeMeetingFile(
   existing: string,
   rendered: string,
