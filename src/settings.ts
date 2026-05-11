@@ -68,7 +68,7 @@ export function clampInterval(n: number): number {
 interface MueslidianHost extends Plugin {
   settings: MuesliSettings;
   saveSettings(): Promise<void>;
-  triggerSyncNow?(): Promise<void>;
+  triggerSyncNow?(trigger?: 'manual' | 'periodic'): Promise<void>;
   clearFilteredOutCache?(): Promise<void>;
   viewLastSyncReport?(): void;
 }

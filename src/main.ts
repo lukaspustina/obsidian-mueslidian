@@ -280,8 +280,8 @@ export default class MueslidianPlugin extends Plugin {
 
     // ── Status bar ──────────────────────────────────────────────────────────
     const item = this.addStatusBarItem();
-    this.statusBarEl = item as { setText(s: string): void };
-    const itemEl = item as { setText(s: string): void; onclick?: () => void };
+    this.statusBarEl = item as unknown as { setText(s: string): void };
+    const itemEl = item as unknown as { setText(s: string): void; onclick: ((ev?: Event) => void) | null };
     itemEl.onclick = () => {
       if (this.state.lastSyncReport) {
         showSyncReport(this.app, this.state.lastSyncReport, this.settings);
@@ -320,7 +320,7 @@ export default class MueslidianPlugin extends Plugin {
     await this.saveData({ settings: this.settings, state: this.state });
   }
 
-  async triggerSyncNow(trigger: 'manual' | 'periodic'): Promise<void> {
+  async triggerSyncNow(trigger: 'manual' | 'periodic' = 'manual'): Promise<void> {
     this.statusState = 'syncing';
     this.refreshStatusBar();
     try {

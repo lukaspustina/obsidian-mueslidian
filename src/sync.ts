@@ -38,7 +38,7 @@ function emitNotice(msg: string): void {
   new Notice(msg);
 }
 
-function extractGranolaId(input: string): GranolaNoteId | null {
+export function extractGranolaId(input: string): GranolaNoteId | null {
   const m = input.match(/not_[a-zA-Z0-9]{14}/);
   return m ? m[0] : null;
 }

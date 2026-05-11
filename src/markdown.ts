@@ -45,8 +45,11 @@ function buildFrontmatterObject(
 
   fm['title'] = note.title ?? 'Untitled';
 
+  // Per SDD §5.3 + §5.5: frontmatter `date` is always YYYY-MM-DD (ISO) so
+  // Dataview groups by day consistently. `bodyDateFormat`/`bodyTimeZone`
+  // affect the meta callout's "When:" line, not this field.
   const dateSource = note.calendar_event?.scheduled_start_time ?? note.created_at;
-  fm['date'] = formatDate(dateSource, settings.filenameDateFormat, settings.bodyTimeZone);
+  fm['date'] = formatDate(dateSource, 'YYYY-MM-DD', 'utc');
 
   if (note.calendar_event !== null) {
     if (note.calendar_event.event_title !== null) {
@@ -96,7 +99,11 @@ function buildFrontmatterObject(
   return fm;
 }
 
-function renderMetaCallout(note: NoteWithBody, attendeeIndex: AttendeeIndex): string {
+function renderMetaCallout(
+  note: NoteWithBody,
+  attendeeIndex: AttendeeIndex,
+  settings: MuesliSettings,
+): string {
   const lines: string[] = [];
 
   lines.push(`**Title:** ${note.title ?? note.calendar_event?.event_title ?? 'Untitled'}`);
@@ -105,10 +112,16 @@ function renderMetaCallout(note: NoteWithBody, attendeeIndex: AttendeeIndex): st
     if (note.calendar_event.organiser !== null) {
       lines.push(`**Organiser:** ${note.calendar_event.organiser}`);
     }
-    const start = note.calendar_event.scheduled_start_time ?? '';
-    const end = note.calendar_event.scheduled_end_time ?? '';
+    const start = note.calendar_event.scheduled_start_time;
+    const end = note.calendar_event.scheduled_end_time;
     if (start || end) {
-      lines.push(`**When:** ${start} → ${end}`);
+      // R/D15: format the When: line per bodyDateFormat + bodyTimeZone.
+      // 'iso' → YYYY-MM-DD; 'local' → DD.MM.YYYY (matches German default).
+      const fmt = settings.bodyDateFormat === 'iso' ? 'YYYY-MM-DD' : 'DD.MM.YYYY';
+      const tz = settings.bodyTimeZone;
+      const startStr = start ? formatDate(start, fmt, tz) : '';
+      const endStr = end ? formatDate(end, fmt, tz) : '';
+      lines.push(`**When:** ${startStr} → ${endStr}`);
     }
   }
 
@@ -158,7 +171,7 @@ export function renderMeeting(
 ): string {
   const fm = buildFrontmatterObject(note, settings, attendeeIndex);
   const fmYaml = serializeFrontmatter(fm);
-  const meta = renderMetaCallout(note, attendeeIndex);
+  const meta = renderMetaCallout(note, attendeeIndex, settings);
   const enhanced = settings.includeEnhancedNotes ? renderEnhanced(note) : null;
   const transcript = settings.includeTranscript ? renderTranscript(note, notesOnSpeakers) : null;
 

@@ -23,9 +23,48 @@ export class Notice {
   constructor(public message: string, public timeout?: number) {}
 }
 
+/**
+ * A minimal recording HTMLElement used by Modal.contentEl in tests.
+ * Each create call appends an entry to `createdEls` on the modal so tests
+ * can assert what was rendered without needing a real DOM.
+ */
+export class MockEl {
+  text = '';
+  children: MockEl[] = [];
+  attrs: Record<string, unknown> = {};
+  style: Record<string, string> = {};
+  onclick: (() => void) | null = null;
+  setText(s: string): void {
+    this.text = s;
+  }
+  appendText(s: string): void {
+    this.text += s;
+  }
+  empty(): void {
+    this.children = [];
+    this.text = '';
+  }
+  createEl(tag: string, opts?: { text?: string }): MockEl {
+    const child = new MockEl();
+    if (opts?.text) child.text = opts.text;
+    child.attrs.tag = tag;
+    this.children.push(child);
+    return child;
+  }
+  createDiv(): MockEl {
+    return this.createEl('div');
+  }
+}
+
 export class Modal {
+  contentEl: MockEl = new MockEl();
   constructor(public app?: unknown) {}
-  open(): void {}
+  open(): void {
+    // Subclasses override onOpen; the real Obsidian calls it after open().
+    if (typeof (this as unknown as { onOpen?: () => void }).onOpen === 'function') {
+      (this as unknown as { onOpen: () => void }).onOpen();
+    }
+  }
   close(): void {}
 }
 
