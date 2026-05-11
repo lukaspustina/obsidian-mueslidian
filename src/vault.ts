@@ -64,7 +64,18 @@ export function filenameFor(
   stem = stem.slice(0, 200);
 
   if (existingFilenames.has(stem + '.md')) {
-    stem = (stem + ' ' + note.id).slice(0, 200);
+    // Per R26: append the full granola_id before .md, preserving the id.
+    // If the resulting stem exceeds 200 chars, truncate the title portion
+    // (the leading slice) rather than the id suffix.
+    const suffix = ' ' + note.id;
+    const maxBase = 200 - suffix.length;
+    if (maxBase <= 0) {
+      stem = note.id.slice(0, 200);
+    } else if (stem.length > maxBase) {
+      stem = stem.slice(0, maxBase) + suffix;
+    } else {
+      stem = stem + suffix;
+    }
   }
 
   return stem + '.md';

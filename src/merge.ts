@@ -94,7 +94,29 @@ function extractBlock(body: string, name: BlockName): string | null {
   return body.slice(startIdx, afterEnd);
 }
 
-export function mergeMeetingFile(existing: string, rendered: string): string {
+/**
+ * Extract the namespace prefix from an attendee-tag template.
+ * For "person/{name}" returns "person"; for "people/{name}" returns "people".
+ * Returns null when the template has no namespace separator.
+ */
+export function attendeeTagPrefix(template: string): string | null {
+  const slash = template.indexOf('/');
+  if (slash <= 0) return null;
+  return template.slice(0, slash);
+}
+
+export function mergeMeetingFile(
+  existing: string,
+  rendered: string,
+  /**
+   * Current `attendeeTagTemplate` prefix (e.g. "person"). When provided,
+   * stale tags under this prefix are removed even when the rendered tags
+   * list is empty (FR19 strict reading). When omitted, the namespace is
+   * derived from `renderedTags[0]` (legacy heuristic; only works when at
+   * least one matched attendee is present).
+   */
+  attendeeTagNamespace?: string,
+): string {
   const e = splitFrontmatter(existing);
   const r = splitFrontmatter(rendered);
 
@@ -120,10 +142,17 @@ export function mergeMeetingFile(existing: string, rendered: string): string {
   const renderedTags = Array.isArray(r.fm['tags']) ? (r.fm['tags'] as string[]) : [];
   const existingTags = Array.isArray(e.fm['tags']) ? (e.fm['tags'] as string[]) : [];
 
-  if (renderedTags.length === 0) {
-    merged['tags'] = existingTags;
+  // Determine the namespace to clean. Explicit > inferred from rendered.
+  const namespace =
+    attendeeTagNamespace ??
+    (renderedTags.length > 0 ? renderedTags[0].split('/')[0] : null);
+
+  if (namespace === null) {
+    // No way to determine the namespace; preserve existing tags + add any rendered.
+    merged['tags'] = renderedTags.length > 0
+      ? [...existingTags.filter(t => !renderedTags.includes(t)), ...renderedTags]
+      : existingTags;
   } else {
-    const namespace = renderedTags[0].split('/')[0];
     const kept = existingTags.filter(t => t.split('/')[0] !== namespace);
     merged['tags'] = [...kept, ...renderedTags];
   }

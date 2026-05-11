@@ -1,13 +1,18 @@
-import { Modal, Notice as ObsidianNotice, Plugin } from 'obsidian';
+import { Modal, Notice as ObsidianNotice, Plugin, requestUrl } from 'obsidian';
 import type { App } from 'obsidian';
-import type { GranolaNoteId, MuesliSettings, SyncReport } from './types.js';
-import { DEFAULT_SETTINGS } from './settings.js';
+import type {
+  GranolaNoteId,
+  HttpTransport,
+  MuesliSettings,
+  MuesliState,
+  SyncReport,
+} from './types.js';
+import { DEFAULT_SETTINGS, MueslidianSettingTab, clampInterval } from './settings.js';
+import { GranolaClient } from './granola.js';
+import { syncAll, syncOne } from './sync.js';
+import { buildAttendeeIndex } from './attendees.js';
 
-type MuesliPluginState = {
-  lastSyncAt: string | null;
-  filteredOut: Record<GranolaNoteId, string>;
-  lastSyncReport: SyncReport | null;
-};
+type MuesliPluginState = MuesliState;
 
 // ─── Notice shim (mirrors sync.ts) ───────────────────────────────────────────
 // vi.stubGlobal('Notice', ...) sets globalThis.Notice; the obsidian import
@@ -27,7 +32,7 @@ function emitNotice(msg: string): void {
 export function shouldCatchUp(
   lastSyncAt: string | null,
   intervalMinutes: number,
-  nowMs: number
+  nowMs: number,
 ): boolean {
   if (intervalMinutes <= 0) return false;
   if (lastSyncAt == null) return true;
@@ -62,24 +67,88 @@ export function notifyOnReport(report: SyncReport, trigger: 'manual' | 'periodic
   const meaningful = report.created + report.updated + report.errors.length > 0;
   if (trigger === 'periodic' && !meaningful) return;
   emitNotice(
-    `Müslidian: created ${report.created}, updated ${report.updated}, errors ${report.errors.length}`
+    `Müslidian: created ${report.created}, updated ${report.updated}, errors ${report.errors.length}`,
   );
 }
 
-// ─── showSyncReport ───────────────────────────────────────────────────────────
+// ─── Relative time formatter (R46) ───────────────────────────────────────────
+
+export function formatRelativeTime(thenIso: string | null, nowMs: number = Date.now()): string {
+  if (thenIso == null) return 'never';
+  const deltaSec = Math.max(0, Math.floor((nowMs - Date.parse(thenIso)) / 1000));
+  if (deltaSec < 60) return `${deltaSec}s ago`;
+  const deltaMin = Math.floor(deltaSec / 60);
+  if (deltaMin < 60) return `${deltaMin} min ago`;
+  const deltaHr = Math.floor(deltaMin / 60);
+  if (deltaHr < 24) return `${deltaHr} hr ago`;
+  return '>24 hr ago';
+}
+
+// ─── SyncReportModal ──────────────────────────────────────────────────────────
 
 class SyncReportModal extends Modal {
-  constructor(app: App, _report: SyncReport) {
+  constructor(
+    app: App,
+    private report: SyncReport,
+    private settings: MuesliSettings,
+  ) {
     super(app);
   }
+
   onOpen(): void {
-    // Real UI would render report fields into contentEl.
-    // Mock has no contentEl; no-op body is intentional.
+    const el = (this as unknown as { contentEl?: HTMLElement }).contentEl;
+    if (!el) return; // test mock has no contentEl
+    el.empty?.();
+    el.createEl?.('h2', { text: 'Müslidian sync report' });
+
+    const list = el.createEl?.('ul');
+    const summary: Array<[string, string | number]> = [
+      ['Listed', this.report.listed],
+      ['Created', this.report.created],
+      ['Updated', this.report.updated],
+      ['Unchanged', this.report.unchanged],
+      ['Filtered out', this.report.filteredOut],
+      ['Delisted', this.report.delisted],
+      ['Skipped (skip-existing)', this.report.skippedExisting],
+      ['Still processing', this.report.stillProcessing],
+      ['Errors', this.report.errors.length],
+      ['Duration (ms)', this.report.durationMs],
+      ['Aborted', this.report.aborted ?? '—'],
+    ];
+    if (list?.createEl) {
+      for (const [k, v] of summary) {
+        const li = list.createEl('li');
+        li.setText?.(`${k}: ${v}`);
+      }
+    }
+
+    if (this.report.unmatchedAttendees.length > 0) {
+      el.createEl?.('h3', { text: 'Unmatched attendees (click to create Person note)' });
+      const ulU = el.createEl?.('ul');
+      for (const ent of this.report.unmatchedAttendees) {
+        const li = ulU?.createEl?.('li');
+        if (!li) continue;
+        const a = li.createEl?.('a', { text: ent.name }) as HTMLElement | undefined;
+        if (a) {
+          a.style.cursor = 'pointer';
+          a.style.textDecoration = 'underline';
+          a.onclick = () => {
+            void handleUnmatchedAttendeeClick(this.app, this.settings, ent.name);
+          };
+        }
+        const titles = ent.sourceNoteTitles.join(', ');
+        li.appendText?.(`  — in: ${titles}`);
+      }
+    }
   }
 }
 
-export function showSyncReport(app: unknown, report: SyncReport): Modal {
-  const modal = new SyncReportModal(app as App, report);
+export function showSyncReport(
+  app: unknown,
+  report: SyncReport,
+  settings: MuesliSettings = DEFAULT_SETTINGS,
+): Modal {
+  const modal = new SyncReportModal(app as App, report, settings);
   modal.open();
   return modal;
 }
@@ -89,7 +158,7 @@ export function showSyncReport(app: unknown, report: SyncReport): Modal {
 export async function handleUnmatchedAttendeeClick(
   app: unknown,
   settings: MuesliSettings,
-  attendeeName: string
+  attendeeName: string,
 ): Promise<void> {
   const a = app as {
     plugins?: {
@@ -107,8 +176,8 @@ export async function handleUnmatchedAttendeeClick(
     return;
   }
 
-  // Fallback: create stub Person note
-  const sanitized = attendeeName.replace(/[/\\:*?"<>|]/g, '-');
+  // Fallback: create stub Person note (R29: sanitize the name)
+  const sanitized = attendeeName.replace(/[/\\:*?"<>|]/g, '-').trim();
   const filename = `Person - ${sanitized}.md`;
   const folder = settings.personFolder;
   const path = folder ? `${folder}/${filename}` : filename;
@@ -120,12 +189,24 @@ export async function handleUnmatchedAttendeeClick(
   emitNotice(`Created stub at ${path}`);
 }
 
+// ─── HTTP transport adapter for the plugin runtime ───────────────────────────
+
+const requestUrlTransport: HttpTransport = async (url, opts) => {
+  const res = await requestUrl({ url, method: opts.method, headers: opts.headers, throw: false });
+  // Obsidian exposes `json` as already-parsed (or undefined if non-JSON body)
+  const body: unknown = (res as unknown as { json?: unknown }).json ?? null;
+  return { status: res.status, body };
+};
+
 // ─── MueslidianPlugin ─────────────────────────────────────────────────────────
 
 export default class MueslidianPlugin extends Plugin {
   settings: MuesliSettings = { ...DEFAULT_SETTINGS };
   state: MuesliPluginState = { lastSyncAt: null, filteredOut: {}, lastSyncReport: null };
   private periodicHandle: { cancel(): void } | null = null;
+  private statusBarEl: { setText(s: string): void } | null = null;
+  private statusBarIntervalId: number | null = null;
+  private statusState: 'idle' | 'syncing' | 'error' = 'idle';
 
   async onload(): Promise<void> {
     const data = (await this.loadData()) as {
@@ -135,36 +216,166 @@ export default class MueslidianPlugin extends Plugin {
     if (data?.settings) this.settings = { ...DEFAULT_SETTINGS, ...data.settings };
     if (data?.state) this.state = { ...this.state, ...data.state };
 
-    // Clamp periodicIntervalMinutes silently per FR45
-    if (
-      this.settings.periodicIntervalMinutes < 0 ||
-      this.settings.periodicIntervalMinutes > 1440
-    ) {
-      console.warn('mueslidian: periodicIntervalMinutes out of range; clamping');
-      this.settings.periodicIntervalMinutes = Math.max(
-        0,
-        Math.min(1440, this.settings.periodicIntervalMinutes)
+    // FR45: clamp periodicIntervalMinutes silently on load
+    const before = this.settings.periodicIntervalMinutes;
+    this.settings.periodicIntervalMinutes = clampInterval(before);
+    if (before !== this.settings.periodicIntervalMinutes) {
+      console.warn(
+        `Müslidian: periodicIntervalMinutes clamped from ${before} to ${this.settings.periodicIntervalMinutes}`,
       );
     }
 
+    // ── Commands ────────────────────────────────────────────────────────────
     this.addCommand({
       id: 'sync-now',
       name: 'Müslidian: Sync now',
-      callback: () => { /* runManualSync stub */ },
+      callback: () => void this.triggerSyncNow('manual'),
     });
+
     this.addCommand({
       id: 'sync-by-id',
       name: 'Müslidian: Sync meeting by ID or URL',
-      callback: () => { /* syncOne stub */ },
+      editorCallback: (editor: unknown) => {
+        const ed = editor as { getSelection?: () => string };
+        const selected = ed.getSelection?.() ?? '';
+        void this.triggerSyncOne(selected);
+      },
     });
+
     this.addCommand({
       id: 'test-connection',
       name: 'Müslidian: Test connection',
-      callback: () => { /* GET /me stub */ },
+      callback: () => void this.testConnection(),
     });
+
+    // ── Settings tab ────────────────────────────────────────────────────────
+    this.addSettingTab(new MueslidianSettingTab(this.app, this));
+
+    // ── Status bar ──────────────────────────────────────────────────────────
+    const item = this.addStatusBarItem();
+    this.statusBarEl = item as { setText(s: string): void };
+    const itemEl = item as { setText(s: string): void; onclick?: () => void };
+    itemEl.onclick = () => {
+      if (this.state.lastSyncReport) {
+        showSyncReport(this.app, this.state.lastSyncReport, this.settings);
+      } else {
+        emitNotice('Müslidian: no sync run yet');
+      }
+    };
+    this.refreshStatusBar();
+    // Re-render every 30 s so relative-time strings advance.
+    this.statusBarIntervalId = window.setInterval(() => this.refreshStatusBar(), 30_000);
+    this.registerInterval(this.statusBarIntervalId);
+
+    // ── Periodic timer ─────────────────────────────────────────────────────
+    this.applyPeriodicSchedule();
+
+    // ── Catch-up on load ────────────────────────────────────────────────────
+    if (
+      shouldCatchUp(this.state.lastSyncAt, this.settings.periodicIntervalMinutes, Date.now())
+    ) {
+      // Fire one catch-up sync ~60 s after load. Don't block onload.
+      void (async () => {
+        await new Promise<void>(r => setTimeout(r, 60_000));
+        await this.triggerSyncNow('periodic');
+      })();
+    }
   }
 
   onunload(): void {
     this.periodicHandle?.cancel();
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData({ settings: this.settings, state: this.state });
+    this.applyPeriodicSchedule();
+  }
+
+  /** R41: persist state + last report to data.json. */
+  async persistState(): Promise<void> {
+    await this.saveData({ settings: this.settings, state: this.state });
+  }
+
+  async triggerSyncNow(trigger: 'manual' | 'periodic'): Promise<void> {
+    this.statusState = 'syncing';
+    this.refreshStatusBar();
+    try {
+      const client = new GranolaClient(this.settings.apiKey, requestUrlTransport);
+      const report = await syncAll(this.app, this.settings, this.state, client, (n, total) => {
+        this.setStatusText(`Müslidian: syncing ${n}/${total}`);
+      });
+      this.statusState = report.aborted ? 'error' : 'idle';
+      notifyOnReport(report, trigger);
+    } catch (err) {
+      this.statusState = 'error';
+      emitNotice(`Müslidian: sync failed (${(err as Error).message})`);
+    } finally {
+      await this.persistState();
+      this.refreshStatusBar();
+    }
+  }
+
+  async triggerSyncOne(input: string): Promise<void> {
+    if (!input.trim()) {
+      emitNotice('Müslidian: paste a Granola note ID or URL into the editor selection first');
+      return;
+    }
+    this.statusState = 'syncing';
+    this.refreshStatusBar();
+    try {
+      const client = new GranolaClient(this.settings.apiKey, requestUrlTransport);
+      const result = await syncOne(this.app, this.settings, this.state, client, input);
+      this.statusState = 'idle';
+      emitNotice(`Müslidian: ${result.written ? 'wrote' : 'skipped'} note`);
+    } catch (err) {
+      this.statusState = 'error';
+      emitNotice(`Müslidian: ${(err as Error).message}`);
+    } finally {
+      await this.persistState();
+      this.refreshStatusBar();
+    }
+  }
+
+  async testConnection(): Promise<void> {
+    try {
+      const client = new GranolaClient(this.settings.apiKey, requestUrlTransport);
+      // listNotes with no params; succeed = API key works
+      await client.listNotes({});
+      emitNotice('Müslidian: connection OK');
+    } catch (err) {
+      emitNotice(`Müslidian: ${(err as Error).message}`);
+    }
+  }
+
+  async clearFilteredOutCache(): Promise<void> {
+    this.state.filteredOut = {};
+    await this.persistState();
+    emitNotice('Müslidian: filtered-out cache cleared');
+  }
+
+  private applyPeriodicSchedule(): void {
+    this.periodicHandle?.cancel();
+    this.periodicHandle = null;
+    if (this.settings.periodicIntervalMinutes <= 0) return;
+    this.periodicHandle = startPeriodicSync({
+      schedulerFn: (cb, ms) => window.setInterval(cb, ms),
+      clearFn: (id) => window.clearInterval(id),
+      runSync: () => this.triggerSyncNow('periodic'),
+      periodicIntervalMinutes: this.settings.periodicIntervalMinutes,
+    });
+  }
+
+  private setStatusText(text: string): void {
+    this.statusBarEl?.setText(text);
+  }
+
+  private refreshStatusBar(): void {
+    if (!this.statusBarEl) return;
+    if (this.statusState === 'syncing') return; // text set by progress callback
+    if (this.statusState === 'error') {
+      this.statusBarEl.setText('Müslidian: error');
+      return;
+    }
+    this.statusBarEl.setText(`Müslidian: ${formatRelativeTime(this.state.lastSyncAt)}`);
   }
 }

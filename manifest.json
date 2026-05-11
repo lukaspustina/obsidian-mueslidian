@@ -1,0 +1,10 @@
+{
+  "id": "mueslidian",
+  "name": "Müslidian",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Sync meetings from Granola into your Obsidian vault.",
+  "author": "Lukas Pustina",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}

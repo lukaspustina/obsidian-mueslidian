@@ -11,7 +11,7 @@ import type {
 } from './types.js';
 import type { GranolaClient } from './granola.js';
 import { renderMeeting, stampAdditionalFrontmatter } from './markdown.js';
-import { mergeMeetingFile, splitFrontmatter } from './merge.js';
+import { attendeeTagPrefix, mergeMeetingFile, splitFrontmatter } from './merge.js';
 import { buildVaultIndex, filenameFor } from './vault.js';
 import { buildAttendeeIndex } from './attendees.js';
 import { load as yamlLoad } from 'js-yaml';
@@ -40,6 +40,44 @@ function extractGranolaId(input: string): GranolaNoteId | null {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/**
+ * R49: append unmatched attendees from a note into the report's
+ * `unmatchedAttendees` list, deduplicated by normalized name. Each entry
+ * carries an array of source note titles.
+ *
+ * Self-exclusion: attendees matching `settings.myName` (case-insensitive)
+ * are NOT considered unmatched — they're deliberately excluded by FR17.
+ */
+function collectUnmatchedAttendees(
+  note: NoteWithBody,
+  attendeeIndex: Record<string, string>,
+  settings: MuesliSettings,
+  report: SyncReport,
+): void {
+  const myName = settings.myName.trim().toLowerCase();
+  const noteTitle = note.title ?? note.id;
+
+  for (const a of note.attendees) {
+    if (!a.name) continue;
+    const trimmed = a.name.trim();
+    if (!trimmed) continue;
+    if (myName !== '' && trimmed.toLowerCase() === myName) continue;
+    const norm = trimmed.replace(/\s+/g, ' ').toLowerCase();
+    if (attendeeIndex[norm]) continue; // matched — not unmatched
+
+    const existing = report.unmatchedAttendees.find(
+      e => e.name.trim().replace(/\s+/g, ' ').toLowerCase() === norm,
+    );
+    if (existing) {
+      if (!existing.sourceNoteTitles.includes(noteTitle)) {
+        existing.sourceNoteTitles.push(noteTitle);
+      }
+    } else {
+      report.unmatchedAttendees.push({ name: trimmed, sourceNoteTitles: [noteTitle] });
+    }
+  }
 }
 
 function emptyReport(startedAt: string): SyncReport {
@@ -122,7 +160,8 @@ async function writeNote(
         ? (fm['notes_on_speakers'] as Record<string, string>)
         : {};
     const rendered = renderMeeting(note, nos, settings, attendeeIndex);
-    const merged = mergeMeetingFile(text, rendered);
+    const ns = attendeeTagPrefix(settings.attendeeTagTemplate) ?? undefined;
+    const merged = mergeMeetingFile(text, rendered, ns);
     const final = stampAdditionalFrontmatter(merged, additional, false);
     await (vault['modify'] as (f: unknown, c: string) => Promise<void>)(file, final);
     report.updated++;
@@ -290,12 +329,16 @@ export async function syncAll(
           report.delisted++;
         } else {
           report.filteredOut++;
-          newCache[id] = listedNote.updated_at;
         }
+        // R35: cache both first-time-filtered AND delisted notes so subsequent
+        // syncs don't refetch them until their updated_at advances or the user
+        // clears the cache via [Clear filtered-out cache].
+        newCache[id] = listedNote.updated_at;
         continue;
       }
 
       await writeNote(app, settings, vaultIndex, attendeeIndex, note, report);
+      collectUnmatchedAttendees(note, attendeeIndex, settings, report);
     }
 
     // Step 7: roll up diff counts
