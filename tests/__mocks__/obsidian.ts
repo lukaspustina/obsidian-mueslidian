@@ -24,9 +24,9 @@ export class Notice {
 }
 
 export class Modal {
-  open = vi.fn();
-  close = vi.fn();
   constructor(public app?: unknown) {}
+  open(): void {}
+  close(): void {}
 }
 
 export class Plugin {

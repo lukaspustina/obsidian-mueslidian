@@ -117,6 +117,7 @@ export interface DiffResult {
   unchanged: GranolaNoteId[];
   filteredOut: GranolaNoteId[];
   delisted: GranolaNoteId[];
+  skippedExisting: GranolaNoteId[];
   newFilteredOutCache: Record<GranolaNoteId, string>;
 }
 

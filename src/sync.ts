@@ -170,6 +170,7 @@ export function diffNotes(
   const toUpdate: GranolaNoteId[] = [];
   const unchanged: GranolaNoteId[] = [];
   const filteredOut: GranolaNoteId[] = [];
+  const skippedExisting: GranolaNoteId[] = [];
   const newFilteredOutCache: Record<GranolaNoteId, string> = {};
 
   for (const note of candidates) {
@@ -180,6 +181,12 @@ export function diffNotes(
     if (cachedUpdatedAt !== undefined && cachedUpdatedAt === note.updated_at) {
       filteredOut.push(id);
       newFilteredOutCache[id] = cachedUpdatedAt;
+      continue;
+    }
+
+    // skipExistingNotes: skip vault files that already exist
+    if (settings.skipExistingNotes && vaultIndex[id]) {
+      skippedExisting.push(id);
       continue;
     }
 
@@ -202,6 +209,7 @@ export function diffNotes(
     unchanged,
     filteredOut,
     delisted: [], // populated by syncAll post-fetch
+    skippedExisting,
     newFilteredOutCache,
   };
 }
@@ -293,6 +301,7 @@ export async function syncAll(
     // Step 7: roll up diff counts
     report.unchanged += diff.unchanged.length;
     report.filteredOut += diff.filteredOut.length;
+    report.skippedExisting += diff.skippedExisting.length;
 
     // Step 8: persist state mutations
     for (const k of Object.keys(state.filteredOut)) delete state.filteredOut[k];
