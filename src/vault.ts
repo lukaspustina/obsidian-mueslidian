@@ -1,15 +1,44 @@
-import type { GranolaNoteId, MuesliSettings, NoteWithBody } from './types.js';
+import type { GranolaNoteId, MuesliSettings, NoteWithBody, VaultIndex, VaultIndexEntry } from './types.js';
 import { formatDate } from './markdown.js';
 
-// TFile is only used as a type — erased at runtime, so safe to import from obsidian.
-import type { TFile } from 'obsidian';
+export type { VaultIndex, VaultIndexEntry };
 
-export interface VaultIndexEntry {
-  file: TFile;
-  granolaUpdatedAt: string;
+export function buildVaultIndex(app: unknown, settings: MuesliSettings): VaultIndex {
+  const a = app as {
+    vault: { getMarkdownFiles: () => Array<{ path: string }> };
+    metadataCache: { getFileCache: (f: unknown) => { frontmatter?: Record<string, unknown> } | null };
+  };
+
+  const dir = settings.syncDirectory;
+  const all = a.vault.getMarkdownFiles();
+  const filtered = !dir
+    ? all
+    : all.filter(f => f.path.startsWith(dir + '/') || f.path === dir);
+  const sorted = [...filtered].sort((x, y) => x.path.localeCompare(y.path));
+
+  const index: VaultIndex = {};
+  for (const file of sorted) {
+    const cache = a.metadataCache.getFileCache(file);
+    if (!cache || !cache.frontmatter) continue;
+    const idRaw = cache.frontmatter['granola_id'];
+    if (typeof idRaw !== 'string') continue;
+    if (index[idRaw]) {
+      console.warn(`mueslidian: duplicate granola_id ${idRaw}; keeping first by path`);
+      continue;
+    }
+    const updatedRaw = cache.frontmatter['granola_updated_at'];
+    const granolaUpdatedAt = typeof updatedRaw === 'string' ? updatedRaw : '';
+    index[idRaw] = { file, granolaUpdatedAt };
+  }
+  return index;
 }
 
-export type VaultIndex = Record<GranolaNoteId, VaultIndexEntry>;
+export function findExistingByGranolaId(
+  index: VaultIndex,
+  id: GranolaNoteId
+): VaultIndexEntry | undefined {
+  return index[id];
+}
 
 export function filenameFor(
   note: NoteWithBody,

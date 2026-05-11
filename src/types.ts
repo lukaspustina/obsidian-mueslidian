@@ -121,3 +121,14 @@ export interface DiffResult {
 }
 
 export type AttendeeIndex = Record<string, string>;
+
+// Vault index — defined here so tests can import from src/types without
+// depending on the obsidian TFile type at import time.
+// TFile is erased at runtime; vault.ts casts to it.
+export interface VaultIndexEntry {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  file: any; // TFile at runtime; typed as any to avoid the obsidian peer dep here
+  granolaUpdatedAt: string;
+}
+
+export type VaultIndex = Record<GranolaNoteId, VaultIndexEntry>;
