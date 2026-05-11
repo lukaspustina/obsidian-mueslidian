@@ -1,0 +1,33 @@
+{
+  "id": "not_with_transcript01",
+  "object": "note",
+  "title": "Q1 Review",
+  "owner": { "name": "Oat", "email": "oat@example.com" },
+  "created_at": "2026-01-27T09:55:00Z",
+  "updated_at": "2026-01-27T11:00:00Z",
+  "web_url": "https://app.granola.ai/notes/not_with_transcript01",
+  "calendar_event": {
+    "event_title": "Q1 Review",
+    "invitees": [
+      { "email": "oat@example.com" },
+      { "email": "eve.evans@example.com" }
+    ],
+    "organiser": "oat@example.com",
+    "calendar_event_id": "evt_001",
+    "scheduled_start_time": "2026-01-27T10:00:00Z",
+    "scheduled_end_time": "2026-01-27T11:00:00Z"
+  },
+  "attendees": [
+    { "name": "Oat", "email": "oat@example.com" },
+    { "name": "Eve Evans", "email": "eve.evans@example.com" }
+  ],
+  "folder_membership": [
+    { "id": "fol_reviewed00001", "object": "folder", "name": "Reviewed", "parent_folder_id": null }
+  ],
+  "summary_text": "Brief summary of Q1.",
+  "summary_markdown": "# Summary\n\nBrief summary of Q1.\n",
+  "transcript": [
+    { "speaker": { "source": "microphone" }, "text": "Welcome to Q1 review.", "start_time": "0", "end_time": "5" },
+    { "speaker": { "source": "speaker", "diarization_label": "Speaker A" }, "text": "Thanks for inviting me.", "start_time": "12", "end_time": "16" }
+  ]
+}

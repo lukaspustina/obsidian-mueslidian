@@ -61,3 +61,63 @@ export type HttpTransport = (
   url: string,
   opts: { method: string; headers: Record<string, string> }
 ) => Promise<{ status: number; body: unknown }>;
+
+export interface MuesliSettings {
+  apiKey: string;
+  syncDirectory: string;
+  personFolder: string;
+  allowedFolders: string[];
+  earliestCreationDate: string | null;
+  documentSyncLimit: number;
+  periodicIntervalMinutes: number;
+  skipExistingNotes: boolean;
+  filenameTemplate: string;
+  filenameDateFormat: string;
+  includeMyNotesPlaceholder: boolean;
+  includeEnhancedNotes: boolean;
+  includeTranscript: boolean;
+  bodyDateFormat: 'local' | 'iso';
+  bodyTimeZone: 'local' | 'utc';
+  myName: string;
+  attendeeTagTemplate: string;
+  additionalFrontmatter: string;
+}
+
+export interface MuesliState {
+  lastSyncAt: string | null;
+  filteredOut: Record<GranolaNoteId, string>;
+  lastSyncReport: SyncReport | null;
+}
+
+export interface PluginData {
+  settings: MuesliSettings;
+  state: MuesliState;
+}
+
+export interface SyncReport {
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  listed: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  filteredOut: number;
+  delisted: number;
+  skippedExisting: number;
+  stillProcessing: number;
+  errors: Array<{ id: GranolaNoteId; reason: string }>;
+  unmatchedAttendees: Array<{ name: string; sourceNoteTitles: string[] }>;
+  aborted: 'api_unhealthy' | 'network' | 'list_failed' | null;
+}
+
+export interface DiffResult {
+  toCreate: GranolaNoteId[];
+  toUpdate: GranolaNoteId[];
+  unchanged: GranolaNoteId[];
+  filteredOut: GranolaNoteId[];
+  delisted: GranolaNoteId[];
+  newFilteredOutCache: Record<GranolaNoteId, string>;
+}
+
+export type AttendeeIndex = Record<string, string>;

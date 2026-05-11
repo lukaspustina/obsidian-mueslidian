@@ -1,0 +1,15 @@
+{
+  "id": "not_no_calendar00001",
+  "object": "note",
+  "title": "Ad-hoc note",
+  "owner": { "name": "Oat", "email": "oat@example.com" },
+  "created_at": "2026-02-01T15:30:00Z",
+  "updated_at": "2026-02-01T15:30:00Z",
+  "web_url": "https://app.granola.ai/notes/not_no_calendar00001",
+  "calendar_event": null,
+  "attendees": [],
+  "folder_membership": [],
+  "summary_text": "Quick capture without a meeting.",
+  "summary_markdown": "Quick capture without a meeting.\n",
+  "transcript": null
+}
