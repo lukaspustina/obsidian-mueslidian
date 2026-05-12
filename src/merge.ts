@@ -81,6 +81,38 @@ export function replaceMarkerBlock(
 type BlockName = 'meta' | 'enhanced' | 'transcript';
 const BLOCK_NAMES: readonly BlockName[] = ['meta', 'enhanced', 'transcript'];
 
+/**
+ * R10: insert `newBlock` immediately after the closest preceding marker
+ * block's `:end` marker (per BLOCK_NAMES ordering). When no preceding
+ * block is present in `body`, the new block is placed at the start of
+ * `body` (which sits right after the frontmatter `---` in the merged
+ * file). `newBlock` is normalized to end with a single newline.
+ */
+function insertBlockAfterPrevious(
+  body: string,
+  currentName: BlockName,
+  newBlock: string,
+): string {
+  const idx = BLOCK_NAMES.indexOf(currentName);
+  const insertion = newBlock.endsWith('\n') ? newBlock : newBlock + '\n';
+
+  for (let i = idx - 1; i >= 0; i--) {
+    const prev = BLOCK_NAMES[i];
+    const endMarker = `<!-- granola:${prev}:end -->`;
+    const endIdx = body.indexOf(endMarker);
+    if (endIdx !== -1) {
+      const afterEnd = endIdx + endMarker.length;
+      // Step past a trailing newline so the new block starts on its own line.
+      const cut = body[afterEnd] === '\n' ? afterEnd + 1 : afterEnd;
+      return body.slice(0, cut) + insertion + body.slice(cut);
+    }
+  }
+
+  // No preceding block present → put it at the very start of the body
+  // (which immediately follows the YAML frontmatter close).
+  return insertion + body;
+}
+
 function extractBlock(body: string, name: BlockName): string | null {
   const startMarker = `<!-- granola:${name}:start -->`;
   const endMarker = `<!-- granola:${name}:end -->`;
@@ -186,9 +218,12 @@ export function mergeMeetingFile(
       // Replace existing with rendered
       body = replaceMarkerBlock(body, name, renderedBlock);
     } else if (renderedBlock !== null && existingBlock === null) {
-      // Insert rendered block — append after body (separated by newline)
-      if (!body.endsWith('\n')) body += '\n';
-      body += renderedBlock;
+      // R10: insert the missing block immediately after the preceding
+      // block's `:end` marker — or at the start of the body if no prior
+      // block exists. BLOCK_NAMES is iterated in source order, so any
+      // earlier block this iteration may have inserted is already in
+      // `body`.
+      body = insertBlockAfterPrevious(body, name, renderedBlock);
     }
     // rendered absent, existing present → keep (do nothing)
     // both absent → nothing
