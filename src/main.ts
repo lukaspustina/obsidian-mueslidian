@@ -111,6 +111,53 @@ export function formatRelativeTime(thenIso: string | null, nowMs: number = Date.
   return '>24 hr ago';
 }
 
+// ─── ConfirmModal (used for destructive actions like clearing the cache) ────
+
+class ConfirmModal extends Modal {
+  constructor(
+    app: App,
+    private readonly message: string,
+    private readonly onConfirm: () => void | Promise<void>,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    const el = (this as unknown as { contentEl?: HTMLElement & {
+      empty?: () => void;
+      createEl?: (tag: string, opts?: { text?: string }) => HTMLElement;
+      createDiv?: () => HTMLElement;
+    } }).contentEl;
+    if (!el) return;
+    el.empty?.();
+    el.createEl?.('h3', { text: 'Müslidian' });
+    el.createEl?.('p', { text: this.message });
+    const row = el.createDiv?.() as HTMLElement | undefined;
+    const confirmBtn = row?.createEl?.('button', { text: 'Confirm' }) as HTMLElement | undefined;
+    const cancelBtn = row?.createEl?.('button', { text: 'Cancel' }) as HTMLElement | undefined;
+    if (confirmBtn) {
+      (confirmBtn as unknown as { onclick: () => void }).onclick = async () => {
+        await this.onConfirm();
+        this.close();
+      };
+    }
+    if (cancelBtn) {
+      (cancelBtn as unknown as { onclick: () => void }).onclick = () => this.close();
+    }
+  }
+}
+
+/** Open a confirmation modal; run `action` only on confirm. */
+export function confirmThen(
+  app: unknown,
+  message: string,
+  action: () => void | Promise<void>,
+): Modal {
+  const m = new ConfirmModal(app as App, message, action);
+  m.open();
+  return m;
+}
+
 // ─── SyncReportModal ──────────────────────────────────────────────────────────
 
 class SyncReportModal extends Modal {
@@ -375,6 +422,18 @@ export default class MueslidianPlugin extends Plugin {
     this.state.filteredOut = {};
     await this.persistState();
     emitNotice('Müslidian: filtered-out cache cleared');
+  }
+
+  /**
+   * Phase-3 deliverable: open a confirmation dialog before clearing the
+   * filtered-out cache. On confirm, calls clearFilteredOutCache().
+   */
+  confirmThenClearFilteredOutCache(): void {
+    confirmThen(
+      this.app,
+      'Clear the filtered-out cache? The next sync will re-check every previously-filtered note.',
+      () => this.clearFilteredOutCache(),
+    );
   }
 
   viewLastSyncReport(): void {

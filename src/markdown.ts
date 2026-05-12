@@ -11,6 +11,21 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
+/**
+ * R25: replace the `granola_synced_at` value in a rendered/merged file
+ * with a caller-supplied ISO timestamp. Caller decides whether to use
+ * wall-clock-now (new file) or preserve an existing value (re-write of
+ * an unchanged note).
+ *
+ * Returns the content unchanged when `granola_synced_at` is absent.
+ */
+export function overrideSyncedAt(content: string, isoTimestamp: string): string {
+  return content.replace(
+    /(\ngranola_synced_at:\s*)['"]?[^'"\n]+['"]?(\n)/,
+    `$1'${isoTimestamp}'$2`,
+  );
+}
+
 export function formatDate(
   iso: string,
   format: string,

@@ -70,6 +70,7 @@ interface MueslidianHost extends Plugin {
   saveSettings(): Promise<void>;
   triggerSyncNow?(trigger?: 'manual' | 'periodic'): Promise<void>;
   clearFilteredOutCache?(): Promise<void>;
+  confirmThenClearFilteredOutCache?(): void;
   viewLastSyncReport?(): void;
 }
 
@@ -306,8 +307,13 @@ export class MueslidianSettingTab extends PluginSettingTab {
       .setName('Clear filtered-out cache')
       .setDesc('Forces the next sync to re-evaluate every previously-filtered note.')
       .addButton(b =>
-        b.setButtonText('Clear').onClick(async () => {
-          await this.plugin.clearFilteredOutCache?.();
+        b.setButtonText('Clear').onClick(() => {
+          // Phase 3 deliverable: confirmation dialog before destructive clear.
+          if (this.plugin.confirmThenClearFilteredOutCache) {
+            this.plugin.confirmThenClearFilteredOutCache();
+          } else {
+            void this.plugin.clearFilteredOutCache?.();
+          }
         }),
       );
   }

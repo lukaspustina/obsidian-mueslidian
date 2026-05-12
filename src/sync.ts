@@ -10,7 +10,7 @@ import type {
   VaultIndex,
 } from './types.js';
 import type { GranolaClient } from './granola.js';
-import { renderMeeting, stampAdditionalFrontmatter } from './markdown.js';
+import { overrideSyncedAt, renderMeeting, stampAdditionalFrontmatter } from './markdown.js';
 import {
   attendeeTagPrefix,
   hasMyNotesOutsideMarkers,
@@ -173,7 +173,15 @@ async function writeNote(
     const rendered = renderMeeting(note, nos, renderSettings, attendeeIndex);
     const ns = attendeeTagPrefix(settings.attendeeTagTemplate) ?? undefined;
     const merged = mergeMeetingFile(text, rendered, ns);
-    const final = stampAdditionalFrontmatter(merged, additional, false);
+    const stamped = stampAdditionalFrontmatter(merged, additional, false);
+    // R25: preserve the existing file's `granola_synced_at` on re-writes so
+    // unchanged content remains byte-identical (TS2.11). New "wall-clock"
+    // stamps are reserved for first writes — see the new-file branch below.
+    const existingSyncedAt =
+      typeof fm['granola_synced_at'] === 'string' ? (fm['granola_synced_at'] as string) : null;
+    const final = existingSyncedAt
+      ? overrideSyncedAt(stamped, existingSyncedAt)
+      : overrideSyncedAt(stamped, new Date().toISOString());
     await (vault['modify'] as (f: unknown, c: string) => Promise<void>)(file, final);
     report.updated++;
   } else {
@@ -188,7 +196,9 @@ async function writeNote(
     const fname = filenameFor(note, settings, existingNames);
     const path = settings.syncDirectory ? `${settings.syncDirectory}/${fname}` : fname;
     const rendered = renderMeeting(note, {}, settings, attendeeIndex);
-    const final = stampAdditionalFrontmatter(rendered, additional, true);
+    const stamped = stampAdditionalFrontmatter(rendered, additional, true);
+    // R25: wall-clock at first write — preserved on subsequent re-writes.
+    const final = overrideSyncedAt(stamped, new Date().toISOString());
     await (vault['create'] as (p: string, c: string) => Promise<unknown>)(path, final);
     report.created++;
   }
