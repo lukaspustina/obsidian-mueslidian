@@ -52,6 +52,7 @@ describe('TS2.9 — Filename template', () => {
       attendeeTagTemplate: 'person/{name}',
       additionalFrontmatter: '',
       markerSyntax: 'html',
+      attendeeHeadings: [],
     };
 
     const result = filenameFor(note, settings, new Set());

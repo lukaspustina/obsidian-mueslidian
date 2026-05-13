@@ -26,6 +26,7 @@ const defaultSettings: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 // 4 notes: 2 in "Reviewed", 2 in other folders

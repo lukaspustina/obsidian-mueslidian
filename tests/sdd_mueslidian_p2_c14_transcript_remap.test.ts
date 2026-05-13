@@ -24,6 +24,7 @@ const defaultSettings: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 describe('TS2.13 — Transcript labels with notes_on_speakers remap', () => {

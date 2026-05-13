@@ -51,6 +51,7 @@ const defaultSettings: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 describe('TS2.10 — Filename sanitization', () => {

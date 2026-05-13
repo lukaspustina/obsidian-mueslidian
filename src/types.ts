@@ -83,6 +83,7 @@ export interface MuesliSettings {
   attendeeTagTemplate: string;
   additionalFrontmatter: string;
   markerSyntax: 'html' | 'obsidian';
+  attendeeHeadings: string[];
 }
 
 export interface MuesliState {

@@ -23,6 +23,7 @@ const settings: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 const state: MuesliState = {

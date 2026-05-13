@@ -18,7 +18,11 @@ import {
   splitFrontmatter,
 } from './merge.js';
 import { buildVaultIndex, filenameFor } from './vault.js';
-import { buildAttendeeIndex } from './attendees.js';
+import {
+  buildAttendeeIndex,
+  extractTypedAttendeeNames,
+  matchAttendeeBySubstring,
+} from './attendees.js';
 import { load as yamlLoad } from 'js-yaml';
 
 // ─── module-level lock ────────────────────────────────────────────────────────
@@ -64,14 +68,11 @@ function collectUnmatchedAttendees(
   const myName = settings.myName.trim().toLowerCase();
   const noteTitle = note.title ?? note.id;
 
-  for (const a of note.attendees) {
-    if (!a.name) continue;
-    const trimmed = a.name.trim();
-    if (!trimmed) continue;
-    if (myName !== '' && trimmed.toLowerCase() === myName) continue;
+  const pushUnmatched = (name: string): void => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (myName !== '' && trimmed.toLowerCase() === myName) return;
     const norm = trimmed.replace(/\s+/g, ' ').toLowerCase();
-    if (attendeeIndex[norm]) continue; // matched — not unmatched
-
     const existing = report.unmatchedAttendees.find(
       e => e.name.trim().replace(/\s+/g, ' ').toLowerCase() === norm,
     );
@@ -82,6 +83,23 @@ function collectUnmatchedAttendees(
     } else {
       report.unmatchedAttendees.push({ name: trimmed, sourceNoteTitles: [noteTitle] });
     }
+  };
+
+  // Granola-detected attendees: exact normalized lookup.
+  for (const a of note.attendees) {
+    if (!a.name) continue;
+    const norm = a.name.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (attendeeIndex[norm]) continue;
+    pushUnmatched(a.name);
+  }
+
+  // Typed-attendee section: substring/token match against the index.
+  // Names that didn't resolve to a unique Person also need a click-to-create
+  // entry in the report.
+  const typed = extractTypedAttendeeNames(note.summary_markdown, settings.attendeeHeadings);
+  for (const name of typed) {
+    if (matchAttendeeBySubstring(attendeeIndex, name)) continue;
+    pushUnmatched(name);
   }
 }
 

@@ -26,6 +26,7 @@ const defaultSettings: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 // Three notes already synced into the vault with matching updated_at values

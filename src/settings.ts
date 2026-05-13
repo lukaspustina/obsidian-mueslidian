@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html' as const,
+  attendeeHeadings: ['Teilnehmer'],
 };
 
 /**
@@ -297,6 +298,21 @@ export class MueslidianSettingTab extends PluginSettingTab {
       .addText(t =>
         t.setValue(this.plugin.settings.attendeeTagTemplate).onChange(async v => {
           this.plugin.settings.attendeeTagTemplate = v || DEFAULT_SETTINGS.attendeeTagTemplate;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName('Typed-attendee section headings')
+      .setDesc(
+        'Headings in the enhanced notes whose bullet items list attendees you typed during the meeting. One per line, without the leading "#". Matched names get linked + tagged just like Granola-detected attendees. Single-name bullets ("Alice") match by token against Person filenames; multiple-match candidates are reported as unmatched.',
+      )
+      .addTextArea(t =>
+        t.setValue(this.plugin.settings.attendeeHeadings.join('\n')).onChange(async v => {
+          this.plugin.settings.attendeeHeadings = v
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
           await this.plugin.saveSettings();
         }),
       );

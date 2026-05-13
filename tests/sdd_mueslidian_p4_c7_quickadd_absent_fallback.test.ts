@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 describe('TS4.6 — QuickAdd absent fallback', () => {

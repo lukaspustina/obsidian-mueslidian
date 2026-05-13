@@ -4,7 +4,14 @@ import type {
   MuesliSettings,
   NoteWithBody,
 } from './types.js';
-import { generateTag, matchAttendee, shouldExcludeSelf } from './attendees.js';
+import {
+  extractTypedAttendeeNames,
+  generateTag,
+  matchAttendee,
+  matchAttendeeBySubstring,
+  personNameFromFilename,
+  shouldExcludeSelf,
+} from './attendees.js';
 import { serializeFrontmatter, MANAGED_KEYS, splitFrontmatter } from './merge.js';
 
 function pad(n: number): string {
@@ -104,12 +111,26 @@ function buildFrontmatterObject(
 
   fm['web_url'] = note.web_url;
 
-  // Attendee tag pipeline
-  const personTags = note.attendees
+  // Attendee tag pipeline — Granola-detected attendees (exact full-name match).
+  const apiTags = note.attendees
     .filter(a => a.name != null && !shouldExcludeSelf(a.name!, settings.myName))
     .filter(a => matchAttendee(attendeeIndex, a.name!) !== undefined)
     .map(a => generateTag(settings.attendeeTagTemplate, a.name!));
-  fm['tags'] = personTags;
+
+  // Typed-attendee tag pipeline — names from configured headings in the
+  // enhanced notes (substring/token match; ambiguity treated as unmatched).
+  // Use the Person file's full display name for the tag so partial
+  // entries ("Alice") still produce a stable, full-name tag.
+  const typedNames = extractTypedAttendeeNames(note.summary_markdown, settings.attendeeHeadings);
+  const typedTags = typedNames
+    .filter(n => !shouldExcludeSelf(n, settings.myName))
+    .map(n => matchAttendeeBySubstring(attendeeIndex, n))
+    .filter((f): f is string => f !== undefined)
+    .map(personNameFromFilename)
+    .filter((n): n is string => n !== null)
+    .map(name => generateTag(settings.attendeeTagTemplate, name));
+
+  fm['tags'] = [...new Set([...apiTags, ...typedTags])];
 
   return fm;
 }

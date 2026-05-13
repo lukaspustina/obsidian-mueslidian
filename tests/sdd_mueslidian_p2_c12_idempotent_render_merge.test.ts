@@ -28,6 +28,7 @@ const settings: MuesliSettings = {
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
   markerSyntax: 'html',
+  attendeeHeadings: [],
 };
 
 describe('TS2.11 — Idempotent render+merge', () => {
