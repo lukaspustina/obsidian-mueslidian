@@ -51,31 +51,62 @@ export function splitFrontmatter(content: string): { fm: Record<string, unknown>
   return { fm, body: match[2] };
 }
 
+/**
+ * Marker delimiters recognized when READING an existing file. Whichever
+ * style appears first wins. New writes use the configured `markerSyntax`
+ * setting via `renderMeeting`, so files migrate gradually on re-sync.
+ */
+function findStartMarker(body: string, name: BlockName): { idx: number; len: number } | null {
+  const html = `<!-- granola:${name}:start -->`;
+  const obs = `%% granola:${name}:start %%`;
+  const hIdx = body.indexOf(html);
+  const oIdx = body.indexOf(obs);
+  if (hIdx === -1 && oIdx === -1) return null;
+  if (hIdx === -1) return { idx: oIdx, len: obs.length };
+  if (oIdx === -1) return { idx: hIdx, len: html.length };
+  // Both present (shouldn't happen in practice) — take the earlier one.
+  return hIdx < oIdx ? { idx: hIdx, len: html.length } : { idx: oIdx, len: obs.length };
+}
+
+function findEndMarker(
+  body: string,
+  name: BlockName,
+  fromIdx: number,
+): { idx: number; len: number } | null {
+  const html = `<!-- granola:${name}:end -->`;
+  const obs = `%% granola:${name}:end %%`;
+  const hIdx = body.indexOf(html, fromIdx);
+  const oIdx = body.indexOf(obs, fromIdx);
+  if (hIdx === -1 && oIdx === -1) return null;
+  if (hIdx === -1) return { idx: oIdx, len: obs.length };
+  if (oIdx === -1) return { idx: hIdx, len: html.length };
+  return hIdx < oIdx ? { idx: hIdx, len: html.length } : { idx: oIdx, len: obs.length };
+}
+
+/** Regex matching either marker style's `*:start` for ANY block name. */
+const ANY_START_RE = /(?:<!-- granola:[a-z]+:start -->|%% granola:[a-z]+:start %%)/g;
+
 export function replaceMarkerBlock(
   body: string,
   name: 'meta' | 'enhanced' | 'transcript',
   newBlock: string
 ): string {
-  const startMarker = `<!-- granola:${name}:start -->`;
-  const endMarker = `<!-- granola:${name}:end -->`;
+  const start = findStartMarker(body, name);
+  if (start === null) return body;
 
-  const startIdx = body.indexOf(startMarker);
-  if (startIdx === -1) return body;
-
-  const endIdx = body.indexOf(endMarker, startIdx);
-  if (endIdx !== -1) {
-    const endFull = endIdx + endMarker.length;
+  const end = findEndMarker(body, name, start.idx + start.len);
+  if (end !== null) {
+    const endFull = end.idx + end.len;
     // Consume a trailing newline if present
     const afterEnd = body[endFull] === '\n' ? endFull + 1 : endFull;
-    return body.slice(0, startIdx) + newBlock + body.slice(afterEnd);
+    return body.slice(0, start.idx) + newBlock + body.slice(afterEnd);
   }
 
-  // Malformed: no end marker — find next start or EOF
-  const nextStartMatch = /<!-- granola:[a-z]+:start -->/g;
-  nextStartMatch.lastIndex = startIdx + startMarker.length;
-  const nextMatch = nextStartMatch.exec(body);
+  // Malformed: no end marker — find next ANY-style start or EOF
+  ANY_START_RE.lastIndex = start.idx + start.len;
+  const nextMatch = ANY_START_RE.exec(body);
   const cutEnd = nextMatch ? nextMatch.index : body.length;
-  return body.slice(0, startIdx) + newBlock + body.slice(cutEnd);
+  return body.slice(0, start.idx) + newBlock + body.slice(cutEnd);
 }
 
 type BlockName = 'meta' | 'enhanced' | 'transcript';
@@ -98,10 +129,9 @@ function insertBlockAfterPrevious(
 
   for (let i = idx - 1; i >= 0; i--) {
     const prev = BLOCK_NAMES[i];
-    const endMarker = `<!-- granola:${prev}:end -->`;
-    const endIdx = body.indexOf(endMarker);
-    if (endIdx !== -1) {
-      const afterEnd = endIdx + endMarker.length;
+    const end = findEndMarker(body, prev, 0);
+    if (end !== null) {
+      const afterEnd = end.idx + end.len;
       // Step past a trailing newline so the new block starts on its own line.
       const cut = body[afterEnd] === '\n' ? afterEnd + 1 : afterEnd;
       return body.slice(0, cut) + insertion + body.slice(cut);
@@ -114,16 +144,14 @@ function insertBlockAfterPrevious(
 }
 
 function extractBlock(body: string, name: BlockName): string | null {
-  const startMarker = `<!-- granola:${name}:start -->`;
-  const endMarker = `<!-- granola:${name}:end -->`;
-  const startIdx = body.indexOf(startMarker);
-  if (startIdx === -1) return null;
-  const endIdx = body.indexOf(endMarker, startIdx);
-  if (endIdx === -1) return null;
-  const endFull = endIdx + endMarker.length;
+  const start = findStartMarker(body, name);
+  if (start === null) return null;
+  const end = findEndMarker(body, name, start.idx + start.len);
+  if (end === null) return null;
+  const endFull = end.idx + end.len;
   // Include trailing newline in the captured block
   const afterEnd = body[endFull] === '\n' ? endFull + 1 : endFull;
-  return body.slice(startIdx, afterEnd);
+  return body.slice(start.idx, afterEnd);
 }
 
 /**
@@ -144,13 +172,18 @@ export function attendeeTagPrefix(template: string): string | null {
  */
 export function hasMyNotesOutsideMarkers(body: string): boolean {
   // Strip every marker block (start...end) from the body, then check.
+  // Both HTML and Obsidian marker styles are recognized.
   let cleaned = body;
   for (const name of BLOCK_NAMES) {
-    const re = new RegExp(
+    const htmlRe = new RegExp(
       `<!-- granola:${name}:start -->[\\s\\S]*?<!-- granola:${name}:end -->`,
       'g',
     );
-    cleaned = cleaned.replace(re, '');
+    const obsRe = new RegExp(
+      `%% granola:${name}:start %%[\\s\\S]*?%% granola:${name}:end %%`,
+      'g',
+    );
+    cleaned = cleaned.replace(htmlRe, '').replace(obsRe, '');
   }
   return cleaned.includes('## My Notes');
 }

@@ -276,12 +276,15 @@ export function diffNotes(
 
 // ─── syncAll ──────────────────────────────────────────────────────────────────
 
+export type SyncPhase = 'listing' | 'diffing' | 'fetching';
+
 export async function syncAll(
   app: unknown,
   settings: MuesliSettings,
   state: MuesliState,
   client: GranolaClient,
-  onProgress?: (n: number, total: number) => void
+  onProgress?: (n: number, total: number) => void,
+  onPhase?: (phase: SyncPhase) => void,
 ): Promise<SyncReport> {
   const startedAt = nowIso();
   if (syncLockHeld) {
@@ -296,6 +299,7 @@ export async function syncAll(
     // First-page failure → 'list_failed'. Mid-iteration failures (after
     // page 1 was already returned) are treated as network errors so the
     // partial list isn't lost ambiguously.
+    onPhase?.('listing');
     const listed: Note[] = [];
     try {
       for await (const n of client.listAllNotes({})) listed.push(n);
@@ -310,6 +314,7 @@ export async function syncAll(
     }
     report.listed = listed.length;
 
+    onPhase?.('diffing');
     // Step 2: build vault index
     const vaultIndex = buildVaultIndex(app, settings);
 
@@ -322,6 +327,7 @@ export async function syncAll(
     // Step 5: working filtered-out cache (starts with cache-hit entries from diff)
     const newCache: Record<GranolaNoteId, string> = { ...diff.newFilteredOutCache };
 
+    onPhase?.('fetching');
     // Step 6: process toCreate ∪ toUpdate
     const todo = [...diff.toCreate, ...diff.toUpdate];
     let consecutiveErrors = 0;

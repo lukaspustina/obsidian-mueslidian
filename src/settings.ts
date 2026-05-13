@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS: MuesliSettings = {
   skipExistingNotes: false,
   filenameTemplate: '{date} {title}',
   filenameDateFormat: 'DD.MM.YYYY',
+  includeMeta: true,
   includeMyNotesPlaceholder: true,
   includeEnhancedNotes: true,
   includeTranscript: true,
@@ -23,6 +24,7 @@ export const DEFAULT_SETTINGS: MuesliSettings = {
   myName: '',
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
+  markerSyntax: 'html' as const,
 };
 
 /**
@@ -205,6 +207,16 @@ export class MueslidianSettingTab extends PluginSettingTab {
     containerEl.createEl('h2', { text: 'Content' });
 
     new Setting(containerEl)
+      .setName('Include Meta block')
+      .setDesc('Title / Organiser / When / Attendees / Web link callout at the top of the note.')
+      .addToggle(t =>
+        t.setValue(this.plugin.settings.includeMeta).onChange(async v => {
+          this.plugin.settings.includeMeta = v;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
       .setName('Include "## My Notes" placeholder')
       .addToggle(t =>
         t.setValue(this.plugin.settings.includeMyNotesPlaceholder).onChange(async v => {
@@ -226,6 +238,22 @@ export class MueslidianSettingTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       }),
     );
+
+    new Setting(containerEl)
+      .setName('Marker comment style')
+      .setDesc(
+        'HTML (`<!-- granola:* -->`) shows in Live Preview. Obsidian (`%% granola:* %%`) is hidden in Live Preview and Reading Mode; visible only in Source Mode. Re-syncs migrate existing files to the chosen style automatically.',
+      )
+      .addDropdown(d =>
+        d
+          .addOption('html', 'HTML comments — `<!-- ... -->`')
+          .addOption('obsidian', 'Obsidian comments — `%% ... %%` (hidden in Live Preview)')
+          .setValue(this.plugin.settings.markerSyntax)
+          .onChange(async (v: string) => {
+            this.plugin.settings.markerSyntax = v === 'obsidian' ? 'obsidian' : 'html';
+            await this.plugin.saveSettings();
+          }),
+      );
 
     // ── Filename ───────────────────────────────────────────────────────────
     containerEl.createEl('h2', { text: 'Filename' });

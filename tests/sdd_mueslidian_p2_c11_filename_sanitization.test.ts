@@ -41,6 +41,7 @@ const defaultSettings: MuesliSettings = {
   skipExistingNotes: false,
   filenameTemplate: '{date} {title}',
   filenameDateFormat: 'DD.MM.YYYY',
+  includeMeta: true,
   includeMyNotesPlaceholder: true,
   includeEnhancedNotes: true,
   includeTranscript: true,
@@ -49,6 +50,7 @@ const defaultSettings: MuesliSettings = {
   myName: '',
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
+  markerSyntax: 'html',
 };
 
 describe('TS2.10 — Filename sanitization', () => {

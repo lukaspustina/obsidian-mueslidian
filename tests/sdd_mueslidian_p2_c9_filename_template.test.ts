@@ -42,6 +42,7 @@ describe('TS2.9 — Filename template', () => {
       skipExistingNotes: false,
       filenameTemplate: '{date} {title}',
       filenameDateFormat: 'DD.MM.YYYY',
+      includeMeta: true,
       includeMyNotesPlaceholder: true,
       includeEnhancedNotes: true,
       includeTranscript: true,
@@ -50,6 +51,7 @@ describe('TS2.9 — Filename template', () => {
       myName: '',
       attendeeTagTemplate: 'person/{name}',
       additionalFrontmatter: '',
+      markerSyntax: 'html',
     };
 
     const result = filenameFor(note, settings, new Set());

@@ -14,6 +14,7 @@ const baseSettings: MuesliSettings = {
   skipExistingNotes: false,
   filenameTemplate: '{date} {title}',
   filenameDateFormat: 'DD.MM.YYYY',
+  includeMeta: true,
   includeMyNotesPlaceholder: true,
   includeEnhancedNotes: true,
   includeTranscript: true,
@@ -22,6 +23,7 @@ const baseSettings: MuesliSettings = {
   myName: 'Sam Sample',
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
+  markerSyntax: 'html',
 };
 
 const note: NoteWithBody = {

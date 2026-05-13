@@ -165,7 +165,7 @@ function renderTranscript(
   notesOnSpeakers: Record<string, string>
 ): string {
   if (!note.transcript) return '';
-  return note.transcript.map(turn => {
+  const turns = note.transcript.map(turn => {
     const label =
       turn.speaker.source === 'microphone'
         ? (note.owner.name ?? 'Owner')
@@ -175,7 +175,23 @@ function renderTranscript(
     const mm = String(Math.floor(secs / 60)).padStart(2, '0');
     const ss = String(secs % 60).padStart(2, '0');
     return `**${label} (${mm}:${ss}):** ${turn.text}`;
-  }).join('\n\n');
+  });
+  // Heading + collapsed `> [!quote]-` callout. Each turn becomes one quoted
+  // line; turns separated by a blank quoted line ('> ') to preserve paragraph
+  // spacing inside the callout.
+  const quoted = turns.map(t => `> ${t}`).join('\n> \n');
+  return `## Transcript\n\n> [!quote]- Transcript\n${quoted}`;
+}
+
+/** Open/close marker strings for a given block, honoring the settings. */
+function markers(name: 'meta' | 'enhanced' | 'transcript', settings: MuesliSettings): {
+  start: string;
+  end: string;
+} {
+  if (settings.markerSyntax === 'obsidian') {
+    return { start: `%% granola:${name}:start %%`, end: `%% granola:${name}:end %%` };
+  }
+  return { start: `<!-- granola:${name}:start -->`, end: `<!-- granola:${name}:end -->` };
 }
 
 export function renderMeeting(
@@ -186,14 +202,22 @@ export function renderMeeting(
 ): string {
   const fm = buildFrontmatterObject(note, settings, attendeeIndex);
   const fmYaml = serializeFrontmatter(fm);
-  const meta = renderMetaCallout(note, attendeeIndex, settings);
+  const meta = settings.includeMeta ? renderMetaCallout(note, attendeeIndex, settings) : null;
   const enhanced = settings.includeEnhancedNotes ? renderEnhanced(note) : null;
   const transcript = settings.includeTranscript ? renderTranscript(note, notesOnSpeakers) : null;
 
-  let body = `<!-- granola:meta:start -->\n${meta}\n<!-- granola:meta:end -->\n`;
+  const mMeta = markers('meta', settings);
+  const mEnh = markers('enhanced', settings);
+  const mTr = markers('transcript', settings);
+
+  let body = '';
+
+  if (meta !== null) {
+    body += `${mMeta.start}\n${meta}\n${mMeta.end}\n`;
+  }
 
   if (enhanced !== null) {
-    body += `<!-- granola:enhanced:start -->\n${enhanced}\n<!-- granola:enhanced:end -->\n`;
+    body += `${mEnh.start}\n${enhanced}\n${mEnh.end}\n`;
   }
 
   if (settings.includeMyNotesPlaceholder) {
@@ -201,7 +225,7 @@ export function renderMeeting(
   }
 
   if (transcript !== null) {
-    body += `<!-- granola:transcript:start -->\n${transcript}\n<!-- granola:transcript:end -->\n`;
+    body += `${mTr.start}\n${transcript}\n${mTr.end}\n`;
   }
 
   return `---\n${fmYaml}---\n${body}`;

@@ -369,12 +369,25 @@ export default class MueslidianPlugin extends Plugin {
 
   async triggerSyncNow(trigger: 'manual' | 'periodic' = 'manual'): Promise<void> {
     this.statusState = 'syncing';
-    this.refreshStatusBar();
+    this.setStatusText('Müslidian: syncing…');
     try {
       const client = new GranolaClient(this.settings.apiKey, requestUrlTransport);
-      const report = await syncAll(this.app, this.settings, this.state, client, (n, total) => {
-        this.setStatusText(`Müslidian: syncing ${n}/${total}`);
-      });
+      const report = await syncAll(
+        this.app,
+        this.settings,
+        this.state,
+        client,
+        (n, total) => {
+          this.setStatusText(`Müslidian: syncing ${n}/${total}`);
+        },
+        (phase) => {
+          const label =
+            phase === 'listing' ? 'listing notes' :
+            phase === 'diffing' ? 'diffing vault' :
+            'fetching';
+          this.setStatusText(`Müslidian: ${label}…`);
+        },
+      );
       this.statusState = report.aborted ? 'error' : 'idle';
       notifyOnReport(report, trigger);
     } catch (err) {
@@ -392,7 +405,7 @@ export default class MueslidianPlugin extends Plugin {
       return;
     }
     this.statusState = 'syncing';
-    this.refreshStatusBar();
+    this.setStatusText('Müslidian: syncing…');
     try {
       const client = new GranolaClient(this.settings.apiKey, requestUrlTransport);
       const result = await syncOne(this.app, this.settings, this.state, client, input);

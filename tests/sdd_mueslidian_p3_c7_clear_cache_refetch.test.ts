@@ -16,6 +16,7 @@ const defaultSettings: MuesliSettings = {
   skipExistingNotes: false,
   filenameTemplate: '{date} {title}',
   filenameDateFormat: 'DD.MM.YYYY',
+  includeMeta: true,
   includeMyNotesPlaceholder: true,
   includeEnhancedNotes: true,
   includeTranscript: true,
@@ -24,6 +25,7 @@ const defaultSettings: MuesliSettings = {
   myName: '',
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
+  markerSyntax: 'html',
 };
 
 // 4 notes: 2 in "Reviewed", 2 in other folders

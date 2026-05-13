@@ -73,6 +73,7 @@ export interface MuesliSettings {
   skipExistingNotes: boolean;
   filenameTemplate: string;
   filenameDateFormat: string;
+  includeMeta: boolean;
   includeMyNotesPlaceholder: boolean;
   includeEnhancedNotes: boolean;
   includeTranscript: boolean;
@@ -81,6 +82,7 @@ export interface MuesliSettings {
   myName: string;
   attendeeTagTemplate: string;
   additionalFrontmatter: string;
+  markerSyntax: 'html' | 'obsidian';
 }
 
 export interface MuesliState {

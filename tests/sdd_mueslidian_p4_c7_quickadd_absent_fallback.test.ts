@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: MuesliSettings = {
   skipExistingNotes: false,
   filenameTemplate: '{date} {title}',
   filenameDateFormat: 'DD.MM.YYYY',
+  includeMeta: true,
   includeMyNotesPlaceholder: true,
   includeEnhancedNotes: true,
   includeTranscript: true,
@@ -27,6 +28,7 @@ const DEFAULT_SETTINGS: MuesliSettings = {
   myName: '',
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
+  markerSyntax: 'html',
 };
 
 describe('TS4.6 — QuickAdd absent fallback', () => {

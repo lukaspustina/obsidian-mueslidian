@@ -41,6 +41,7 @@ const settings: MuesliSettings = {
   skipExistingNotes: false,
   filenameTemplate: '{date} {title}',
   filenameDateFormat: 'DD.MM.YYYY',
+  includeMeta: true,
   includeMyNotesPlaceholder: true,
   includeEnhancedNotes: true,
   includeTranscript: true,
@@ -49,6 +50,7 @@ const settings: MuesliSettings = {
   myName: '',
   attendeeTagTemplate: 'person/{name}',
   additionalFrontmatter: '',
+  markerSyntax: 'html',
 };
 
 describe('TS3.10 — Delisting', () => {
