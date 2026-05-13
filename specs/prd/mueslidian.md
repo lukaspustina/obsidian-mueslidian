@@ -1,6 +1,6 @@
 # PRD — Müslidian (Obsidian Granola Plugin)
 
-**Status:** draft · **Author:** sam.sample · **Last updated:** 2026-05-11
+**Status:** draft · **Last updated:** 2026-05-11
 
 > The plugin's user-facing name is **Müslidian**; its plugin id is `mueslidian`.
 > Granola remains the data source; this PRD describes how Müslidian pulls
