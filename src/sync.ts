@@ -128,14 +128,16 @@ function finalize(r: SyncReport): SyncReport {
   return r;
 }
 
-function parseAdditionalFrontmatter(s: string): Record<string, string> {
+function parseAdditionalFrontmatter(s: string): Record<string, unknown> {
   if (!s.trim()) return {};
   try {
     const parsed = yamlLoad(s);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const out: Record<string, string> = {};
+      const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-        out[k] = String(v);
+        // Preserve arrays (e.g. `tags: [Besprechung, todo]`); coerce scalars
+        // to strings so existing single-value semantics keep working.
+        out[k] = Array.isArray(v) ? v : String(v);
       }
       return out;
     }

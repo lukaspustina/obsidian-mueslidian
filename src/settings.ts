@@ -322,6 +322,9 @@ export class MueslidianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('YAML key: value pairs, one per line')
+      .setDesc(
+        'Stamped on creation. Plugin-managed keys (granola_*, title, date, attendees, …) are rejected — except `tags`, which unions your values into the person/* set.',
+      )
       .addTextArea(t =>
         t.setValue(this.plugin.settings.additionalFrontmatter).onChange(async v => {
           this.plugin.settings.additionalFrontmatter = v;

@@ -254,7 +254,7 @@ export function renderMeeting(
 
 export function stampAdditionalFrontmatter(
   content: string,
-  additional: Record<string, string>,
+  additional: Record<string, unknown>,
   isCreation: boolean
 ): string {
   if (!isCreation) return content;
@@ -262,6 +262,17 @@ export function stampAdditionalFrontmatter(
   const { fm, body } = splitFrontmatter(content);
 
   for (const [k, v] of Object.entries(additional)) {
+    // Special case: `tags` is plugin-managed (we own the person/* namespace),
+    // but user-supplied tags should union with the rendered set rather than
+    // be silently dropped. Scalar values are wrapped into a single-item list.
+    if (k === 'tags') {
+      const userTags = Array.isArray(v)
+        ? v.map(String)
+        : [String(v)];
+      const existing = Array.isArray(fm['tags']) ? (fm['tags'] as unknown[]).map(String) : [];
+      fm['tags'] = [...new Set([...existing, ...userTags])];
+      continue;
+    }
     if (MANAGED_KEYS.has(k) || k.startsWith('granola_')) {
       console.warn(`mueslidian: skipping additionalFrontmatter key ${k} (collides with plugin-managed namespace)`);
       continue;
