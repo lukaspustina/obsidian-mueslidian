@@ -52,6 +52,7 @@ const defaultSettings: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 describe('TS2.10 — Filename sanitization', () => {

@@ -50,6 +50,21 @@ export function formatDate(
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
+/**
+ * Format a clock time from an ISO timestamp. Recognized tokens:
+ *   HH → 2-digit 24h hour, mm → 2-digit minute. Anything else is literal.
+ */
+export function formatTime(
+  iso: string,
+  format: string,
+  tz: 'local' | 'utc'
+): string {
+  const d = new Date(iso);
+  const h = tz === 'utc' ? d.getUTCHours() : d.getHours();
+  const m = tz === 'utc' ? d.getUTCMinutes() : d.getMinutes();
+  return format.replace('HH', pad(h)).replace('mm', pad(m));
+}
+
 function buildFrontmatterObject(
   note: NoteWithBody,
   settings: MuesliSettings,

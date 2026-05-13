@@ -52,6 +52,7 @@ const settings: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 describe('TS3.10 — Delisting', () => {

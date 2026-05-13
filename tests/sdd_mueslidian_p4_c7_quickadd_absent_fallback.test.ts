@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 describe('TS4.6 — QuickAdd absent fallback', () => {

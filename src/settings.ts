@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html' as const,
   attendeeHeadings: ['Teilnehmer'],
+  filenameTimeFormat: 'HH-mm',
 };
 
 /**
@@ -261,7 +262,9 @@ export class MueslidianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Filename template')
-      .setDesc('Placeholders: {date} {created_date} {updated_date} {title} {id}')
+      .setDesc(
+        'Placeholders: {date} {time} {created_date} {updated_date} {title} {id}. {time} resolves to the meeting start time when the note has a calendar event, otherwise it is omitted.',
+      )
       .addText(t =>
         t.setValue(this.plugin.settings.filenameTemplate).onChange(async v => {
           this.plugin.settings.filenameTemplate = v;
@@ -275,6 +278,18 @@ export class MueslidianSettingTab extends PluginSettingTab {
       .addText(t =>
         t.setValue(this.plugin.settings.filenameDateFormat).onChange(async v => {
           this.plugin.settings.filenameDateFormat = v || DEFAULT_SETTINGS.filenameDateFormat;
+          await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName('Time format (filenames + collisions)')
+      .setDesc(
+        'Tokens: HH (00–23), mm (00–59). Used by the {time} placeholder and as the first-choice collision disambiguator. Default: HH-mm.',
+      )
+      .addText(t =>
+        t.setValue(this.plugin.settings.filenameTimeFormat).onChange(async v => {
+          this.plugin.settings.filenameTimeFormat = v || DEFAULT_SETTINGS.filenameTimeFormat;
           await this.plugin.saveSettings();
         }),
       );

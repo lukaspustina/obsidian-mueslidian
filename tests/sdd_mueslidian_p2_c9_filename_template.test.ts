@@ -53,6 +53,7 @@ describe('TS2.9 — Filename template', () => {
       additionalFrontmatter: '',
       markerSyntax: 'html',
       attendeeHeadings: [],
+      filenameTimeFormat: 'HH-mm',
     };
 
     const result = filenameFor(note, settings, new Set());

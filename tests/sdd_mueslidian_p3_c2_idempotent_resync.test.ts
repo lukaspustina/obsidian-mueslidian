@@ -27,6 +27,7 @@ const defaultSettings: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 // Three notes already synced into the vault with matching updated_at values

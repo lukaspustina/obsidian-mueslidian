@@ -1,5 +1,5 @@
 import type { GranolaNoteId, MuesliSettings, NoteWithBody, VaultIndex, VaultIndexEntry } from './types.js';
-import { formatDate } from './markdown.js';
+import { formatDate, formatTime } from './markdown.js';
 
 export type { VaultIndex, VaultIndexEntry };
 
@@ -45,38 +45,65 @@ export function filenameFor(
   settings: MuesliSettings,
   existingFilenames: Set<string>
 ): string {
-  const iso = note.calendar_event?.scheduled_start_time ?? note.created_at;
+  const scheduled = note.calendar_event?.scheduled_start_time ?? null;
+  const iso = scheduled ?? note.created_at;
   const dateStr = formatDate(iso, settings.filenameDateFormat, 'utc');
+  const timeStr = scheduled
+    ? formatTime(scheduled, settings.filenameTimeFormat, settings.bodyTimeZone)
+    : '';
 
   const title = note.title ?? 'Untitled';
 
   let stem = settings.filenameTemplate
     .replace('{date}', dateStr)
+    .replace('{time}', timeStr)
     .replace('{created_date}', formatDate(note.created_at, settings.filenameDateFormat, 'utc'))
     .replace('{updated_date}', formatDate(note.updated_at, settings.filenameDateFormat, 'utc'))
     .replace('{title}', title)
     .replace('{id}', note.id);
 
-  // Sanitize forbidden characters
-  stem = stem.replace(/[/\\:*?"<>|]/g, '-');
+  // Sanitize forbidden characters, then collapse whitespace that may have
+  // resulted from an empty {time} substitution.
+  stem = stem.replace(/[/\\:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim();
 
   // Truncate stem to 200 chars
   stem = stem.slice(0, 200);
 
   if (existingFilenames.has(stem + '.md')) {
-    // Per R26: append the full granola_id before .md, preserving the id.
-    // If the resulting stem exceeds 200 chars, truncate the title portion
-    // (the leading slice) rather than the id suffix.
-    const suffix = ' ' + note.id;
-    const maxBase = 200 - suffix.length;
-    if (maxBase <= 0) {
-      stem = note.id.slice(0, 200);
-    } else if (stem.length > maxBase) {
-      stem = stem.slice(0, maxBase) + suffix;
-    } else {
-      stem = stem + suffix;
-    }
+    stem = disambiguateFilename(stem, timeStr, existingFilenames);
   }
 
   return stem + '.md';
+}
+
+/**
+ * Resolve a collision by appending a disambiguator:
+ *   1. " {HH-mm}" from the scheduled meeting time when available
+ *   2. " (2)", " (3)", … as a stable last resort
+ * Always keeps the resulting stem ≤ 200 characters by truncating the base.
+ */
+function disambiguateFilename(
+  baseStem: string,
+  timeStr: string,
+  existing: Set<string>,
+): string {
+  const tryWithSuffix = (suffix: string): string => {
+    const maxBase = 200 - suffix.length;
+    if (maxBase <= 0) return suffix.trimStart().slice(0, 200);
+    const truncated = baseStem.length > maxBase ? baseStem.slice(0, maxBase) : baseStem;
+    return truncated + suffix;
+  };
+
+  if (timeStr) {
+    const candidate = tryWithSuffix(' ' + timeStr);
+    if (!existing.has(candidate + '.md')) return candidate;
+  }
+
+  for (let n = 2; n < 1000; n++) {
+    const candidate = tryWithSuffix(` (${n})`);
+    if (!existing.has(candidate + '.md')) return candidate;
+  }
+  // Pathological fallback: 1000+ collisions on the same name. Append a
+  // monotonic timestamp so we still produce a unique filename.
+  return tryWithSuffix(' ' + Date.now());
 }

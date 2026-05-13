@@ -27,25 +27,22 @@ function note(id: string, title: string | null = 'T', dateIso = '2026-01-01T00:0
   };
 }
 
-describe('R26 — filename collision suffix preserves the full granola_id', () => {
-  it('appends " {id}" when stem clashes', () => {
+describe('R26 — filename collision disambiguation', () => {
+  it('appends " (2)" when stem clashes and no scheduled time is available', () => {
     const n = note('not_collision00001', 'My Meeting');
     const existing = new Set(['01.01.2026 My Meeting.md']);
     const result = filenameFor(n, settings, existing);
-    expect(result).toContain('not_collision00001');
-    expect(result.endsWith('.md')).toBe(true);
+    expect(result).toBe('01.01.2026 My Meeting (2).md');
   });
 
-  it('truncates the title portion (not the id) when total length > 200', () => {
+  it('keeps total length ≤ 200 when the base is already long', () => {
     const longTitle = 'X'.repeat(300);
     const n = note('not_collision00002', longTitle);
     // filenameFor first truncates the template-resolved stem to 200 chars,
     // so the colliding existing filename uses that 200-char form.
     const truncatedStem = ('01.01.2026 ' + longTitle).slice(0, 200);
     const result = filenameFor(n, settings, new Set([truncatedStem + '.md']));
-    // The full id should always be present
-    expect(result).toContain('not_collision00002');
-    // Length without .md ≤ 200
+    expect(result.endsWith(' (2).md')).toBe(true);
     expect(result.replace(/\.md$/, '').length).toBeLessThanOrEqual(200);
   });
 });

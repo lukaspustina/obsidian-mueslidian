@@ -29,6 +29,7 @@ const settings: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 describe('TS2.11 — Idempotent render+merge', () => {

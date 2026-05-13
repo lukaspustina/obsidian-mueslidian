@@ -25,6 +25,7 @@ const defaultSettings: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 describe('TS2.13 — Transcript labels with notes_on_speakers remap', () => {

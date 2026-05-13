@@ -25,6 +25,7 @@ const baseSettings: MuesliSettings = {
   additionalFrontmatter: '',
   markerSyntax: 'html',
   attendeeHeadings: [],
+  filenameTimeFormat: 'HH-mm',
 };
 
 const note: NoteWithBody = {

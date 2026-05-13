@@ -84,6 +84,7 @@ export interface MuesliSettings {
   additionalFrontmatter: string;
   markerSyntax: 'html' | 'obsidian';
   attendeeHeadings: string[];
+  filenameTimeFormat: string;
 }
 
 export interface MuesliState {
