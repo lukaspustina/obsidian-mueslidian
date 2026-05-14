@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GranolaClient } from '../src/granola';
 import type { HttpTransport } from '../src/types';
-import fixture from './fixtures/list-page-1.json' assert { type: 'json' };
+import fixture from './fixtures/list-page-1.json' with { type: 'json' };
 
 describe('TS1.1 — Happy path list', () => {
   it('yields all notes from fixture and makes exactly one HTTP call', async () => {

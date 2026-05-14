@@ -40,7 +40,7 @@ const subcommands: Array<{ argv: string[]; label: string }> = [
 describe('TS1.8 — API key not leaked', () => {
   const consoleMethods = ['log', 'error', 'warn', 'info', 'debug'] as const;
   const capturedConsole: string[] = [];
-  const spies: Array<MockInstance<any[], any>> = [];
+  const spies: Array<MockInstance<(...args: any[]) => any>> = [];
 
   beforeEach(() => {
     capturedConsole.length = 0;

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderMeeting } from '../src/markdown';
 import type { MuesliSettings, AttendeeIndex } from '../src/types';
-import fixture from './fixtures/note-with-transcript.json' assert { type: 'json' };
+import fixture from './fixtures/note-with-transcript.json' with { type: 'json' };
 
 const defaultSettings: MuesliSettings = {
   apiKey: '',

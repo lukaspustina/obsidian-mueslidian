@@ -29,7 +29,7 @@ function makeReport(overrides?: Partial<SyncReport>): SyncReport {
 }
 
 describe('showSyncReport (TS4.4)', () => {
-  let openSpy: MockInstance<any[], any>;
+  let openSpy: MockInstance<(...args: any[]) => any>;
 
   beforeEach(() => {
     openSpy = vi.spyOn(Modal.prototype, 'open');

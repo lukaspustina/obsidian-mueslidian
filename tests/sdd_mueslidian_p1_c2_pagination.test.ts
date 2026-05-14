@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GranolaClient } from '../src/granola';
 import type { HttpTransport } from '../src/types';
-import page1 from './fixtures/list-page-1.json' assert { type: 'json' };
-import page2 from './fixtures/list-page-2.json' assert { type: 'json' };
+import page1 from './fixtures/list-page-1.json' with { type: 'json' };
+import page2 from './fixtures/list-page-2.json' with { type: 'json' };
 
 describe('TS1.2 — Pagination', () => {
   it('yields all notes from both pages and carries cursor=c on second call', async () => {

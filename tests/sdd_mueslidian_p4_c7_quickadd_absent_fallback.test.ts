@@ -37,7 +37,7 @@ describe('TS4.6 — QuickAdd absent fallback', () => {
   let writtenFiles: Record<string, string>;
   let app: any;
   let noticeMessages: string[];
-  let NoticeStub: ReturnType<typeof vi.fn<any, any>>;
+  let NoticeStub: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
   beforeEach(() => {
     writtenFiles = {};

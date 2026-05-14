@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { GranolaClient } from '../src/granola';
 import type { HttpTransport } from '../src/types';
-import fixture from './fixtures/list-page-1.json' assert { type: 'json' };
+import fixture from './fixtures/list-page-1.json' with { type: 'json' };
 
 // Use a fixture body with hasMore: false so listNotes doesn't try to paginate
 const successBody = { ...fixture, hasMore: false, cursor: null };

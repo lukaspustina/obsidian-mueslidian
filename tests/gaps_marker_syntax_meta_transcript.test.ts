@@ -3,7 +3,7 @@ import { renderMeeting } from '../src/markdown';
 import { mergeMeetingFile } from '../src/merge';
 import { DEFAULT_SETTINGS } from '../src/settings';
 import type { AttendeeIndex, MuesliSettings } from '../src/types';
-import fixture from './fixtures/note-with-transcript.json' assert { type: 'json' };
+import fixture from './fixtures/note-with-transcript.json' with { type: 'json' };
 
 const attendeeIndex: AttendeeIndex = {};
 
