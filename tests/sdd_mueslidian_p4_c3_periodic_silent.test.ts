@@ -21,7 +21,7 @@ const reportNoChange: SyncReport = {
 
 describe("TS4.2 — Periodic silent on no-change", () => {
   let noticeCalls: string[];
-  let NoticeStub: ReturnType<typeof vi.fn>;
+  let NoticeStub: ReturnType<typeof vi.fn<any, any>>;
 
   beforeEach(() => {
     noticeCalls = [];

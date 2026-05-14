@@ -3,7 +3,7 @@
 // WHEN the status bar item is clicked (i.e. showSyncReport is called)
 // THEN the Modal mock's open() is called, confirming a modal was opened with the report.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest';
 import { Modal } from 'obsidian';
 import { showSyncReport } from '../src/main';
 import type { SyncReport } from '../src/types';
@@ -29,7 +29,7 @@ function makeReport(overrides?: Partial<SyncReport>): SyncReport {
 }
 
 describe('showSyncReport (TS4.4)', () => {
-  let openSpy: ReturnType<typeof vi.spyOn>;
+  let openSpy: MockInstance<any[], any>;
 
   beforeEach(() => {
     openSpy = vi.spyOn(Modal.prototype, 'open');

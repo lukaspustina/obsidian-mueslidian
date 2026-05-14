@@ -4,7 +4,9 @@ import { splitFrontmatter } from '../src/merge';
 
 describe('stampAdditionalFrontmatter — tags merge', () => {
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  afterEach(() => warnSpy.mockClear());
+  afterEach(() => {
+    warnSpy.mockClear();
+  });
 
   function render(extraTags: string[]): string {
     return [
