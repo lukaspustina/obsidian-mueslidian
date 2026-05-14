@@ -19,7 +19,7 @@ TARGET := $(OBSIDIAN_PLUGIN_TARGET)/$(PLUGIN_ID)
 
 .DEFAULT_GOAL := help
 .PHONY: help setup doctor build watch clean install link unlink uninstall reinstall \
-        typecheck lint test test-watch check release-check release
+        typecheck lint test test-watch check ci release-check release
 
 # --- Discovery ------------------------------------------------------------
 
@@ -117,6 +117,12 @@ test-watch: ## Run vitest in watch mode
 	npm run test:watch
 
 check: typecheck lint test ## typecheck + lint + test (pre-commit gate)
+
+ci: ## Run the exact CI pipeline locally (npm ci + test + tsc + audit)
+	npm ci
+	npm run test
+	npx tsc --noEmit
+	npm audit --audit-level=moderate
 
 # --- Release --------------------------------------------------------------
 
